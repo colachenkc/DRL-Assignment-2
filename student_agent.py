@@ -231,25 +231,77 @@ class Game2048Env(gym.Env):
         # If the simulated board is different from the current board, the move is legal
         return not np.array_equal(self.board, temp_board)
 
-def get_action(state, score):
+class Node:
+    def __init__(self, state, parent=None, action=None):
+        self.state = state  # Tuple (board, score)
+        self.parent = parent
+        self.action = action
+        self.children = []
+        self.visits = 0
+        self.total_reward = 0
+
+    def is_fully_expanded(self, env):
+        return len(self.children) == len([a for a in range(4) if env.is_move_legal(a)])
+
+    def best_child(self, c_param=1.4):
+        choices_weights = [
+            (child.total_reward / child.visits) + c_param * math.sqrt(math.log(self.visits) / child.visits)
+            for child in self.children
+        ]
+        return self.children[np.argmax(choices_weights)]
+
+
+def get_action(state, score, simulations=100):
     env = Game2048Env()
-    env.board = state.copy()  # Set the current state
-    best_score = -1
-    best_action = None
+    env.board = state.copy()
+    env.score = score
 
-    for action in range(4):  # Try all 4 directions
-        temp_env = copy.deepcopy(env)
-        _, new_score, moved, _ = temp_env.step(action)
+    root = Node((env.board.copy(), env.score))
 
-        if moved and new_score > best_score:
-            best_score = new_score
-            best_action = action
+    for _ in range(simulations):
+        node = root
+        env_sim = copy.deepcopy(env)
 
-    if best_action is not None:
-        return best_action
-    else:
-        # No legal moves, return any (won’t matter since game will end)
-        return 0
-    # You can submit this random agent to evaluate the performance of a purely random strategy.
+        # SELECTION
+        while node.children and node.is_fully_expanded(env_sim):
+            node = node.best_child()
+            _, _, done, _ = env_sim.step(node.action)
+            if done:
+                break
+
+        # EXPANSION
+        if not env_sim.is_game_over():
+            legal_actions = [a for a in range(4) if env_sim.is_move_legal(a)]
+            tried_actions = [child.action for child in node.children]
+            untried = [a for a in legal_actions if a not in tried_actions]
+
+            if untried:
+                action = random.choice(untried)
+                _, reward, done, _ = env_sim.step(action)
+                new_node = Node((env_sim.board.copy(), env_sim.score), parent=node, action=action)
+                node.children.append(new_node)
+                node = new_node
+
+        # SIMULATION
+        total_reward = env_sim.score
+        while not env_sim.is_game_over():
+            legal = [a for a in range(4) if env_sim.is_move_legal(a)]
+            if not legal:
+                break
+            a = random.choice(legal)
+            _, r, done, _ = env_sim.step(a)
+            total_reward = r
+            if done:
+                break
+
+        # BACKPROPAGATION
+        while node is not None:
+            node.visits += 1
+            node.total_reward += total_reward
+            node = node.parent
+
+    # Choose the action with the most visits
+    best_move = max(root.children, key=lambda child: child.visits).action
+    return best_move
 
 
