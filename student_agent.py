@@ -251,7 +251,7 @@ class Node:
         return self.children[np.argmax(choices_weights)]
 
 
-def get_action(state, score, simulations=100):
+def get_action(state, score, simulations=10):
     env = Game2048Env()
     env.board = state.copy()
     env.score = score
@@ -303,5 +303,3 @@ def get_action(state, score, simulations=100):
     # Choose the action with the most visits
     best_move = max(root.children, key=lambda child: child.visits).action
     return best_move
-
-
