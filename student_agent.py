@@ -251,7 +251,7 @@ class Node:
         return self.children[np.argmax(choices_weights)]
 
 
-def get_action(state, score, simulations=30):
+def get_action(state, score, simulations=100):
     env = Game2048Env()
     env.board = state.copy()
     env.score = score
