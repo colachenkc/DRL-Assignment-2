@@ -243,7 +243,7 @@ class Node:
     def is_fully_expanded(self, env):
         return len(self.children) == len([a for a in range(4) if env.is_move_legal(a)])
 
-    def best_child(self, c_param=1.4):
+    def best_child(self, c_param=5):
         choices_weights = [
             (child.total_reward / child.visits) + c_param * math.sqrt(math.log(self.visits) / child.visits)
             for child in self.children
