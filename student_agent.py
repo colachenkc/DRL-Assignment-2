@@ -243,7 +243,7 @@ class Node:
     def is_fully_expanded(self, env):
         return len(self.children) == len([a for a in range(4) if env.is_move_legal(a)])
 
-    def best_child(self, c_param=5):
+    def best_child(self, c_param=1.4):
         choices_weights = [
             (child.total_reward / child.visits) + c_param * math.sqrt(math.log(self.visits) / child.visits)
             for child in self.children
@@ -283,13 +283,37 @@ def get_action(state, score, simulations=10):
                 node = new_node
 
         # SIMULATION
+        # total_reward = env_sim.score
+        # while not env_sim.is_game_over():
+        #     legal = [a for a in range(4) if env_sim.is_move_legal(a)]
+        #     if not legal:
+        #         break
+        #     a = random.choice(legal)
+        #     _, r, done, _ = env_sim.step(a)
+        #     total_reward = r
+        #     if done:
+        #         break
+        # SIMULATION (HEURISTIC POLICY)
         total_reward = env_sim.score
         while not env_sim.is_game_over():
             legal = [a for a in range(4) if env_sim.is_move_legal(a)]
             if not legal:
                 break
-            a = random.choice(legal)
-            _, r, done, _ = env_sim.step(a)
+
+            # Heuristic: evaluate each legal move
+            move_scores = []
+            for a in legal:
+                temp_env = copy.deepcopy(env_sim)
+                _, temp_score, _, _ = temp_env.step(a)
+                empty_tiles = np.sum(temp_env.board == 0)
+                gain = temp_score - env_sim.score
+                # Heuristic score = weighted sum
+                heuristic_score = gain + 0.1 * empty_tiles  # Tune 0.1 if needed
+                move_scores.append((heuristic_score, a))
+
+            # Choose best move by heuristic
+            _, best_action = max(move_scores, key=lambda x: x[0])
+            _, r, done, _ = env_sim.step(best_action)
             total_reward = r
             if done:
                 break
