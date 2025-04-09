@@ -250,7 +250,24 @@ class Node:
         ]
         return self.children[np.argmax(choices_weights)]
 
+# SIMULATION (IMPROVED HEURISTIC POLICY)
+def evaluate_board(board, score):
+    empty_tiles = np.sum(board == 0)
+    max_tile = np.max(board)
+    corner_bonus = 0
 
+    # Encourage max tile in corner
+    if max_tile in [board[0, 0], board[0, -1], board[-1, 0], board[-1, -1]]:
+        corner_bonus = max_tile * 0.1
+
+    # Simple monotonicity score (row/col smoothness)
+    mono_score = 0
+    for row in board:
+        mono_score += np.sum(np.diff(row) <= 0) + np.sum(np.diff(row[::-1]) <= 0)
+    for col in board.T:
+        mono_score += np.sum(np.diff(col) <= 0) + np.sum(np.diff(col[::-1]) <= 0)
+
+    return score + 0.1 * empty_tiles + corner_bonus + 0.2 * mono_score
 def get_action(state, score, simulations=50):
     env = Game2048Env()
     env.board = state.copy()
@@ -294,6 +311,36 @@ def get_action(state, score, simulations=50):
         #     if done:
         #         break
         # SIMULATION (HEURISTIC POLICY)
+        # total_reward = env_sim.score
+        # while not env_sim.is_game_over():
+        #     legal = [a for a in range(4) if env_sim.is_move_legal(a)]
+        #     if not legal:
+        #         break
+
+        #     # Heuristic: evaluate each legal move
+        #     move_scores = []
+        #     for a in legal:
+        #         # Backup state
+        #         old_board = env_sim.board.copy()
+        #         old_score = env_sim.score
+
+        #         _, temp_score, _, _ = env_sim.step(a)
+        #         empty_tiles = np.sum(env_sim.board == 0)
+        #         gain = temp_score - old_score
+        #         heuristic_score = gain + 0.1 * empty_tiles
+        #         move_scores.append((heuristic_score, a))
+
+        #         # Restore state
+        #         env_sim.board = old_board
+        #         env_sim.score = old_score
+
+
+        #     # Choose best move by heuristic
+        #     _, best_action = max(move_scores, key=lambda x: x[0])
+        #     _, r, done, _ = env_sim.step(best_action)
+        #     total_reward = r
+        #     if done:
+        #         break
         total_reward = env_sim.score
         while not env_sim.is_game_over():
             legal = [a for a in range(4) if env_sim.is_move_legal(a)]
@@ -303,28 +350,21 @@ def get_action(state, score, simulations=50):
             # Heuristic: evaluate each legal move
             move_scores = []
             for a in legal:
-                # Backup state
                 old_board = env_sim.board.copy()
                 old_score = env_sim.score
 
                 _, temp_score, _, _ = env_sim.step(a)
-                empty_tiles = np.sum(env_sim.board == 0)
-                gain = temp_score - old_score
-                heuristic_score = gain + 0.1 * empty_tiles
-                move_scores.append((heuristic_score, a))
+                h_score = evaluate_board(env_sim.board, temp_score)
+                move_scores.append((h_score, a))
 
-                # Restore state
                 env_sim.board = old_board
                 env_sim.score = old_score
 
-
-            # Choose best move by heuristic
             _, best_action = max(move_scores, key=lambda x: x[0])
             _, r, done, _ = env_sim.step(best_action)
             total_reward = r
             if done:
                 break
-
         # BACKPROPAGATION
         while node is not None:
             node.visits += 1
