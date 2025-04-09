@@ -268,7 +268,7 @@ def evaluate_board(board, score):
         mono_score += np.sum(np.diff(col) <= 0) + np.sum(np.diff(col[::-1]) <= 0)
 
     return score + 0.1 * empty_tiles + corner_bonus + 0.2 * mono_score
-def get_action(state, score, simulations=50):
+def get_action(state, score, simulations=10):
     env = Game2048Env()
     env.board = state.copy()
     env.score = score
