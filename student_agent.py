@@ -251,7 +251,7 @@ class Node:
         return self.children[np.argmax(choices_weights)]
 
 
-def get_action(state, score, simulations=200):
+def get_action(state, score, simulations=50):
     env = Game2048Env()
     env.board = state.copy()
     env.score = score
@@ -303,13 +303,20 @@ def get_action(state, score, simulations=200):
             # Heuristic: evaluate each legal move
             move_scores = []
             for a in legal:
-                temp_env = copy.deepcopy(env_sim)
-                _, temp_score, _, _ = temp_env.step(a)
-                empty_tiles = np.sum(temp_env.board == 0)
-                gain = temp_score - env_sim.score
-                # Heuristic score = weighted sum
-                heuristic_score = gain + 0.1 * empty_tiles  # Tune 0.1 if needed
+                # Backup state
+                old_board = env_sim.board.copy()
+                old_score = env_sim.score
+
+                _, temp_score, _, _ = env_sim.step(a)
+                empty_tiles = np.sum(env_sim.board == 0)
+                gain = temp_score - old_score
+                heuristic_score = gain + 0.1 * empty_tiles
                 move_scores.append((heuristic_score, a))
+
+                # Restore state
+                env_sim.board = old_board
+                env_sim.score = old_score
+
 
             # Choose best move by heuristic
             _, best_action = max(move_scores, key=lambda x: x[0])
